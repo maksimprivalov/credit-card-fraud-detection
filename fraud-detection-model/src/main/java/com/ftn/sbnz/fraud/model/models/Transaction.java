@@ -1,6 +1,7 @@
 package com.ftn.sbnz.fraud.model.models;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 public class Transaction {
 
@@ -71,6 +72,10 @@ public class Transaction {
 
     public String getDeviceFingerprint() { return deviceFingerprint; }
     public void setDeviceFingerprint(String deviceFingerprint) { this.deviceFingerprint = deviceFingerprint; }
+
+    public long getTimestampMillis() {
+        return timestamp.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
 
     @Override
     public String toString() {
