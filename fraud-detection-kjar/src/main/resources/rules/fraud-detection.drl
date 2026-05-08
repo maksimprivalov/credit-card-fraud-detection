@@ -33,16 +33,14 @@ import java.time.Duration;
 
 // ============================================================
 // BACKWARD CHAINING QUERY
-// Rekurzivno prolazi stablo rizika i proverava da li je neki
-// RiskFactor na listu stabla satisfied == true.
 // ============================================================
 
-query isRiskSatisfied(String factId, String customerId)
-    RiskFactor(id == factId, customerId == customerId, satisfied == true)
+query isRiskSatisfied(String factId, String cid)
+    RiskFactor(id == factId, customerId == cid, satisfied == true)
     or
     (
         RiskDependency(parentId == factId, $childId : childId)
-        and isRiskSatisfied($childId, customerId;)
+        and isRiskSatisfied($childId, cid;)
     )
 end
 
@@ -53,66 +51,65 @@ end
 rule "R1.1 - Small Transaction"
     salience 100
 when
-    $t : Transaction(amount < 50)
-    not SmallTransaction(transactionId == $t.id)
+    $t : Transaction($id : id, amount < 50)
+    not SmallTransaction(transactionId == $id)
 then
-    insert(new SmallTransaction($t.id));
+    insert(new SmallTransaction($id));
 end
 
 rule "R1.2 - Medium Transaction"
     salience 100
 when
-    $t : Transaction(amount >= 50, amount < 500)
-    not MediumTransaction(transactionId == $t.id)
+    $t : Transaction($id : id, amount >= 50, amount < 500)
+    not MediumTransaction(transactionId == $id)
 then
-    insert(new MediumTransaction($t.id));
+    insert(new MediumTransaction($id));
 end
 
 rule "R1.3 - Large Transaction"
     salience 100
 when
-    $t : Transaction(amount >= 500)
-    not LargeTransaction(transactionId == $t.id)
+    $t : Transaction($id : id, amount >= 500)
+    not LargeTransaction(transactionId == $id)
 then
-    insert(new LargeTransaction($t.id));
+    insert(new LargeTransaction($id));
 end
 
 rule "R1.4 - Foreign Transaction"
     salience 100
 when
-    $t : Transaction($country : country, $cid : customerId)
+    $t : Transaction($id : id, $country : country, $cid : customerId)
     CustomerProfile(customerId == $cid, homeCountry != $country)
-    not ForeignTransaction(transactionId == $t.id)
+    not ForeignTransaction(transactionId == $id)
 then
-    insert(new ForeignTransaction($t.id));
+    insert(new ForeignTransaction($id));
 end
 
 rule "R1.5 - Risky Merchant Category"
     salience 100
 when
-    $t : Transaction(mccCode in ("electronics", "gambling", "crypto", "jewelry"))
-    not RiskyMerchantCategory(transactionId == $t.id)
+    $t : Transaction($id : id, mccCode in ("electronics", "gambling", "crypto", "jewelry"))
+    not RiskyMerchantCategory(transactionId == $id)
 then
-    insert(new RiskyMerchantCategory($t.id));
+    insert(new RiskyMerchantCategory($id));
 end
 
 rule "R1.6 - Suspicious IP"
     salience 100
 when
-    // TODO: inject blacklisted IP countries via external fact
-    $t : Transaction(type == TransactionType.ONLINE, ipAddress != null)
-    not SuspiciousIP(transactionId == $t.id)
+    $t : Transaction($id : id, type == TransactionType.ONLINE, ipAddress != null)
+    not SuspiciousIP(transactionId == $id)
 then
-    // insert(new SuspiciousIP($t.id));  // activate when blacklist fact is available
+    // insert(new SuspiciousIP($id));  // activate when blacklist fact is available
 end
 
 rule "R1.7 - Night Transaction"
     salience 100
 when
-    $t : Transaction(timestamp.getHour() < 6 || timestamp.getHour() >= 23)
-    not NightTransaction(transactionId == $t.id)
+    $t : Transaction($id : id, timestamp.getHour() < 6 || timestamp.getHour() >= 23)
+    not NightTransaction(transactionId == $id)
 then
-    insert(new NightTransaction($t.id));
+    insert(new NightTransaction($id));
 end
 
 // ============================================================
@@ -206,16 +203,14 @@ end
 
 // ============================================================
 // NIVO 3 - Agregati (accumulate) i CEP obrasci (salience 60)
-// Istorijske transakcije se insertuju u sesiju zajedno sa
-// tekucom transakcijom koja ima RiskScore.
 // ============================================================
 
 rule "R3.1 - Daily Limit Exceeded"
     salience 60
 when
     $p  : CustomerProfile($cid : customerId, $avg : avgMonthlySpending)
-    $t  : Transaction(customerId == $cid, $now : timestamp)
-    $rs : RiskScore(transactionId == $t.id)
+    $t  : Transaction($id : id, customerId == $cid, $now : timestamp)
+    $rs : RiskScore(transactionId == $id)
     accumulate(
         Transaction(customerId == $cid, $amt : amount,
                     timestamp.isAfter($now.minusHours(24)));
@@ -233,8 +228,8 @@ rule "R3.2 - High Frequency"
     salience 60
 when
     $p  : CustomerProfile($cid : customerId)
-    $t  : Transaction(customerId == $cid, $now : timestamp)
-    $rs : RiskScore(transactionId == $t.id)
+    $t  : Transaction($id : id, customerId == $cid, $now : timestamp)
+    $rs : RiskScore(transactionId == $id)
     accumulate(
         Transaction(customerId == $cid,
                     timestamp.isAfter($now.minusHours(1)));
@@ -252,8 +247,8 @@ rule "R3.3 - Multi Country"
     salience 60
 when
     $p  : CustomerProfile($cid : customerId)
-    $t  : Transaction(customerId == $cid, $now : timestamp)
-    $rs : RiskScore(transactionId == $t.id)
+    $t  : Transaction($id : id, customerId == $cid, $now : timestamp)
+    $rs : RiskScore(transactionId == $id)
     $countries : Set(size > 2) from accumulate(
         Transaction(customerId == $cid, $country : country,
                     timestamp.isAfter($now.minusHours(6))),
@@ -270,8 +265,8 @@ rule "R3.4 - Amount Spike"
     salience 60
 when
     $p  : CustomerProfile($cid : customerId)
-    $t  : Transaction(customerId == $cid, $amount : amount, $now : timestamp)
-    $rs : RiskScore(transactionId == $t.id)
+    $t  : Transaction($id : id, customerId == $cid, $amount : amount, $now : timestamp)
+    $rs : RiskScore(transactionId == $id)
     accumulate(
         Transaction(customerId == $cid, $amt : amount,
                     timestamp.isAfter($now.minusDays(30)));
@@ -285,12 +280,11 @@ then
     update($rs);
 end
 
-// R3.5 - Card Testing: 3+ male transakcije (< 5e) u 10 minuta, ista kartica
 rule "R3.5 - Card Testing Pattern"
     salience 60
 when
-    $t  : Transaction($cardId : cardId, $cid : customerId, $now : timestamp)
-    $rs : RiskScore(transactionId == $t.id)
+    $t  : Transaction($id : id, $cardId : cardId, $cid : customerId, $now : timestamp)
+    $rs : RiskScore(transactionId == $id)
     accumulate(
         Transaction(cardId == $cardId, amount < 5,
                     timestamp.isAfter($now.minusMinutes(10)));
@@ -305,14 +299,12 @@ then
     update($rs);
 end
 
-// R3.6 - Impossible Travel: 2 transakcije u razlicitim zemljama,
-//         vremenski razmak manji od 120 minuta (fizicki nemoguce)
 rule "R3.6 - Impossible Travel"
     salience 60
 when
-    $t  : Transaction($cardId : cardId, $cid : customerId,
+    $t  : Transaction($id : id, $cardId : cardId, $cid : customerId,
                       $country1 : country, $now : timestamp)
-    $rs : RiskScore(transactionId == $t.id)
+    $rs : RiskScore(transactionId == $id)
     $prev : Transaction(this != $t,
                         cardId == $cardId,
                         $country2 : country != $country1,
@@ -327,12 +319,11 @@ then
     update($rs);
 end
 
-// R3.7 - Velocity Attack: 5+ transakcija u 5 minuta, ista kartica
 rule "R3.7 - Velocity Attack"
     salience 60
 when
-    $t  : Transaction($cardId : cardId, $cid : customerId, $now : timestamp)
-    $rs : RiskScore(transactionId == $t.id)
+    $t  : Transaction($id : id, $cardId : cardId, $cid : customerId, $now : timestamp)
+    $rs : RiskScore(transactionId == $id)
     accumulate(
         Transaction(cardId == $cardId,
                     timestamp.isAfter($now.minusMinutes(5)));
@@ -347,13 +338,12 @@ then
     update($rs);
 end
 
-// R3.8 - Dormant Awakening: kartica neaktivna 6+ meseci, zatim LargeTransaction
 rule "R3.8 - Dormant Awakening"
     salience 60
 when
-    $t  : Transaction($cardId : cardId, $cid : customerId, $now : timestamp)
-    LargeTransaction(transactionId == $t.id)
-    $rs : RiskScore(transactionId == $t.id)
+    $t  : Transaction($id : id, $cardId : cardId, $cid : customerId, $now : timestamp)
+    LargeTransaction(transactionId == $id)
+    $rs : RiskScore(transactionId == $id)
     not (Transaction(this != $t,
                      cardId == $cardId,
                      eval(timestamp.isAfter($now.minusMonths(6)) &&
@@ -372,11 +362,13 @@ end
 rule "R4.1 - Card Testing + Large/Medium bonus"
     salience 40
 when
-    $t  : Transaction($id : id)
-    CardTestingPattern(cardId == $t.cardId)
+    $t  : Transaction($id : id, $cardId : cardId, $cid : customerId)
+    CardTestingPattern(cardId == $cardId)
     (LargeTransaction(transactionId == $id) or MediumTransaction(transactionId == $id))
     $rs : RiskScore(transactionId == $id)
+    not RiskFactor(id == "bonus_R4.1", customerId == $cid)
 then
+    insert(new RiskFactor("bonus_R4.1", $cid, true));
     $rs.addScore(30, "R4.1 CardTesting+LargeMedium bonus");
     update($rs);
 end
@@ -384,11 +376,13 @@ end
 rule "R4.2 - Impossible Travel + Foreign bonus"
     salience 40
 when
-    $t  : Transaction($id : id)
-    ImpossibleTravel(cardId == $t.cardId)
+    $t  : Transaction($id : id, $cardId : cardId, $cid : customerId)
+    ImpossibleTravel(cardId == $cardId)
     ForeignTransaction(transactionId == $id)
     $rs : RiskScore(transactionId == $id)
+    not RiskFactor(id == "bonus_R4.2", customerId == $cid)
 then
+    insert(new RiskFactor("bonus_R4.2", $cid, true));
     $rs.addScore(20, "R4.2 ImpossibleTravel+Foreign bonus");
     update($rs);
 end
@@ -396,17 +390,18 @@ end
 rule "R4.3 - Spending + Unknown + Risky merchant bonus"
     salience 40
 when
-    $t  : Transaction($id : id)
+    $t  : Transaction($id : id, $cid : customerId)
     SpendingAnomaly(transactionId == $id)
     UnknownLocation(transactionId == $id)
     RiskyMerchantCategory(transactionId == $id)
     $rs : RiskScore(transactionId == $id)
+    not RiskFactor(id == "bonus_R4.3", customerId == $cid)
 then
+    insert(new RiskFactor("bonus_R4.3", $cid, true));
     $rs.addScore(15, "R4.3 SpendingAnomaly+UnknownLocation+RiskyMerchant bonus");
     update($rs);
 end
 
-// R4.7 ima visu salience da odmah blokira kompromitovanu karticu
 rule "R4.7 - Compromised Card immediate BLOCK"
     salience 200
 when
