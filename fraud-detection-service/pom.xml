@@ -15,7 +15,7 @@
 	<description>Credit Card Fraud Detection - Spring Boot service</description>
 	<properties>
 		<java.version>11</java.version>
-		<drools.version>7.49.0.Final</drools.version>
+		<drools.version>7.73.0.Final</drools.version>
 		<fraud.version>0.0.1-SNAPSHOT</fraud.version>
 	</properties>
 
@@ -35,32 +35,12 @@
 			<groupId>com.ftn.sbnz</groupId>
 			<artifactId>fraud-detection-model</artifactId>
 			<version>${fraud.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.drools</groupId>
-					<artifactId>drools-mvel</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mvel</groupId>
-					<artifactId>mvel2</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>com.ftn.sbnz</groupId>
 			<artifactId>fraud-detection-kjar</artifactId>
 			<version>${fraud.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.drools</groupId>
-					<artifactId>drools-mvel</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mvel</groupId>
-					<artifactId>mvel2</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 	</dependencies>
 

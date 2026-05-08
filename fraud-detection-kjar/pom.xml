@@ -9,7 +9,7 @@
 	<description>Credit Card Fraud Detection - Drools rules module</description>
 	<properties>
 		<java.version>11</java.version>
-		<drools.version>7.49.0.Final</drools.version>
+		<drools.version>7.73.0.Final</drools.version>
 		<fraud.version>0.0.1-SNAPSHOT</fraud.version>
 
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -46,13 +46,6 @@
 			<groupId>com.ftn.sbnz</groupId>
 			<artifactId>fraud-detection-model</artifactId>
 			<version>${fraud.version}</version>
-		</dependency>
-
-		<!-- Override mvel2 za Java 17+ kompatibilnost -->
-		<dependency>
-			<groupId>org.mvel</groupId>
-			<artifactId>mvel2</artifactId>
-			<version>2.4.14.Final</version>
 		</dependency>
 	</dependencies>
 
