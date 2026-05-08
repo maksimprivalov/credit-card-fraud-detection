@@ -30,12 +30,6 @@ import com.ftn.sbnz.fraud.model.facts.RiskDependency;
 import java.util.Set;
 import java.time.Duration;
 
-// Transaction se proglasava CEP eventom; @timestamp koristi getTimestampMillis()
-declare Transaction
-    @role(event)
-    @timestamp(timestampMillis)
-end
-
 // ============================================================
 // BACKWARD CHAINING QUERY
 // Rekurzivno prolazi stablo rizika i proverava da li je neki
