@@ -1,4 +1,5 @@
 package rules;
+dialect "java"
 
 import com.ftn.sbnz.fraud.model.models.Transaction;
 import com.ftn.sbnz.fraud.model.models.CustomerProfile;
