@@ -1,0 +1,243 @@
+{
+  "info": {
+    "name": "Fraud Detection API",
+    "_postman_id": "fraud-detection-collection",
+    "description": "Testovi za credit-card-fraud-detection servis (localhost:8080)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Demo scenario (Marko)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/fraud-detection/demo",
+          "host": ["{{baseUrl}}"],
+          "path": ["fraud-detection", "demo"]
+        },
+        "description": "Scenarijo iz specifikacije: Marko pravi 850€ transakciju iz Nigerije. Ocekuje se BLOCK score=100."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test('Decision je BLOCK', () => pm.expect(r.decision).to.eql('BLOCK'));",
+              "pm.test('Score je 100', () => pm.expect(r.riskScore).to.eql(100));",
+              "pm.test('customerId je marko', () => pm.expect(r.customerId).to.eql('marko'));",
+              "pm.test('Ima razloge', () => pm.expect(r.reasons.length).to.be.above(0));",
+              "pm.test('SpendingAnomaly okidan', () => pm.expect(r.reasons.join()).to.include('SpendingAnomaly'));",
+              "pm.test('ImpossibleTravel okidan', () => pm.expect(r.reasons.join()).to.include('ImpossibleTravel'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. APPROVE - mala domaca transakcija",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "{{baseUrl}}/fraud-detection/analyze", "host": ["{{baseUrl}}"], "path": ["fraud-detection", "analyze"]},
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction\": {\n    \"id\": \"tx-approve-1\",\n    \"cardId\": \"card-ana\",\n    \"customerId\": \"ana\",\n    \"amount\": 25.0,\n    \"currency\": \"EUR\",\n    \"timestamp\": \"2026-05-08T14:30:00\",\n    \"type\": \"POS\",\n    \"country\": \"RS\",\n    \"city\": \"Novi Sad\",\n    \"mccCode\": \"supermarket\",\n    \"ipAddress\": null,\n    \"deviceFingerprint\": null\n  },\n  \"customerProfile\": {\n    \"customerId\": \"ana\",\n    \"age\": 28,\n    \"homeCountry\": \"RS\",\n    \"avgMonthlySpending\": 600.0,\n    \"bankRelationshipYears\": 5,\n    \"knownCountries\": [\"RS\"],\n    \"usualMccCodes\": [\"supermarket\", \"restaurant\"],\n    \"nightActivityFlag\": false\n  },\n  \"historicalTransactions\": []\n}"
+        },
+        "description": "Mala transakcija (25€), domaca zemlja (RS), uobicajen merchant. Ocekuje se APPROVE, score < 30."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test('Decision je APPROVE', () => pm.expect(r.decision).to.eql('APPROVE'));",
+              "pm.test('Score < 30', () => pm.expect(r.riskScore).to.be.below(30));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. REVIEW - strana zemlja + rizican merchant",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "{{baseUrl}}/fraud-detection/analyze", "host": ["{{baseUrl}}"], "path": ["fraud-detection", "analyze"]},
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction\": {\n    \"id\": \"tx-review-1\",\n    \"cardId\": \"card-petar\",\n    \"customerId\": \"petar\",\n    \"amount\": 150.0,\n    \"currency\": \"EUR\",\n    \"timestamp\": \"2026-05-08T15:00:00\",\n    \"type\": \"ONLINE\",\n    \"country\": \"DE\",\n    \"city\": null,\n    \"mccCode\": \"electronics\",\n    \"ipAddress\": \"80.0.0.1\",\n    \"deviceFingerprint\": null\n  },\n  \"customerProfile\": {\n    \"customerId\": \"petar\",\n    \"age\": 35,\n    \"homeCountry\": \"RS\",\n    \"avgMonthlySpending\": 500.0,\n    \"bankRelationshipYears\": 3,\n    \"knownCountries\": [\"RS\"],\n    \"usualMccCodes\": [\"supermarket\", \"restaurant\"],\n    \"nightActivityFlag\": false\n  },\n  \"historicalTransactions\": []\n}"
+        },
+        "description": "Srednja transakcija (150€), strana zemlja (DE), rizican merchant (electronics), nepoznata lokacija. Ocekuje se REVIEW, score 30-79."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test('Decision je REVIEW', () => pm.expect(r.decision).to.eql('REVIEW'));",
+              "pm.test('Score izmedju 30 i 79', () => {",
+              "  pm.expect(r.riskScore).to.be.at.least(30);",
+              "  pm.expect(r.riskScore).to.be.below(80);",
+              "});",
+              "pm.test('UnknownLocation okidan', () => pm.expect(r.reasons.join()).to.include('UnknownLocation'));",
+              "pm.test('UnusualMerchant okidan', () => pm.expect(r.reasons.join()).to.include('UnusualMerchant'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. BLOCK - velika strana transakcija + spending anomaly",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "{{baseUrl}}/fraud-detection/analyze", "host": ["{{baseUrl}}"], "path": ["fraud-detection", "analyze"]},
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction\": {\n    \"id\": \"tx-block-1\",\n    \"cardId\": \"card-milan\",\n    \"customerId\": \"milan\",\n    \"amount\": 900.0,\n    \"currency\": \"EUR\",\n    \"timestamp\": \"2026-05-08T14:00:00\",\n    \"type\": \"ONLINE\",\n    \"country\": \"CN\",\n    \"city\": null,\n    \"mccCode\": \"gambling\",\n    \"ipAddress\": \"1.2.3.4\",\n    \"deviceFingerprint\": null\n  },\n  \"customerProfile\": {\n    \"customerId\": \"milan\",\n    \"age\": 40,\n    \"homeCountry\": \"RS\",\n    \"avgMonthlySpending\": 400.0,\n    \"bankRelationshipYears\": 2,\n    \"knownCountries\": [\"RS\"],\n    \"usualMccCodes\": [\"supermarket\"],\n    \"nightActivityFlag\": false\n  },\n  \"historicalTransactions\": []\n}"
+        },
+        "description": "Velika transakcija (900€ > 3x dnevni prosek), Kina, gambling. SpendingAnomaly + UnknownLocation + UnusualMerchant. Ocekuje se BLOCK, score >= 80."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test('Decision je BLOCK', () => pm.expect(r.decision).to.eql('BLOCK'));",
+              "pm.test('Score >= 80', () => pm.expect(r.riskScore).to.be.at.least(80));",
+              "pm.test('SpendingAnomaly okidan', () => pm.expect(r.reasons.join()).to.include('SpendingAnomaly'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Nocna transakcija - UnusualTime",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "{{baseUrl}}/fraud-detection/analyze", "host": ["{{baseUrl}}"], "path": ["fraud-detection", "analyze"]},
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction\": {\n    \"id\": \"tx-night-1\",\n    \"cardId\": \"card-jovana\",\n    \"customerId\": \"jovana\",\n    \"amount\": 80.0,\n    \"currency\": \"EUR\",\n    \"timestamp\": \"2026-05-08T03:15:00\",\n    \"type\": \"ONLINE\",\n    \"country\": \"RS\",\n    \"city\": \"Beograd\",\n    \"mccCode\": \"restaurant\",\n    \"ipAddress\": null,\n    \"deviceFingerprint\": null\n  },\n  \"customerProfile\": {\n    \"customerId\": \"jovana\",\n    \"age\": 25,\n    \"homeCountry\": \"RS\",\n    \"avgMonthlySpending\": 300.0,\n    \"bankRelationshipYears\": 1,\n    \"knownCountries\": [\"RS\"],\n    \"usualMccCodes\": [\"restaurant\"],\n    \"nightActivityFlag\": false\n  },\n  \"historicalTransactions\": []\n}"
+        },
+        "description": "Transakcija u 03:15 (nocni cas), nightActivityFlag=false. Ocekuje se R1.7 NightTransaction i R2.4 UnusualTime."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test('UnusualTime okidan', () => pm.expect(r.reasons.join()).to.include('UnusualTime'));",
+              "pm.test('Score > 0', () => pm.expect(r.riskScore).to.be.above(0));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Impossible Travel - dve razlicite zemlje za <2h",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "{{baseUrl}}/fraud-detection/analyze", "host": ["{{baseUrl}}"], "path": ["fraud-detection", "analyze"]},
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction\": {\n    \"id\": \"tx-travel-2\",\n    \"cardId\": \"card-nikola\",\n    \"customerId\": \"nikola\",\n    \"amount\": 200.0,\n    \"currency\": \"EUR\",\n    \"timestamp\": \"2026-05-08T12:30:00\",\n    \"type\": \"POS\",\n    \"country\": \"FR\",\n    \"city\": \"Paris\",\n    \"mccCode\": \"restaurant\",\n    \"ipAddress\": null,\n    \"deviceFingerprint\": null\n  },\n  \"customerProfile\": {\n    \"customerId\": \"nikola\",\n    \"age\": 32,\n    \"homeCountry\": \"RS\",\n    \"avgMonthlySpending\": 800.0,\n    \"bankRelationshipYears\": 6,\n    \"knownCountries\": [\"RS\", \"FR\"],\n    \"usualMccCodes\": [\"restaurant\", \"supermarket\"],\n    \"nightActivityFlag\": false\n  },\n  \"historicalTransactions\": [\n    {\n      \"id\": \"tx-travel-1\",\n      \"cardId\": \"card-nikola\",\n      \"customerId\": \"nikola\",\n      \"amount\": 50.0,\n      \"currency\": \"EUR\",\n      \"timestamp\": \"2026-05-08T11:00:00\",\n      \"type\": \"POS\",\n      \"country\": \"RS\",\n      \"city\": \"Beograd\",\n      \"mccCode\": \"supermarket\",\n      \"ipAddress\": null,\n      \"deviceFingerprint\": null\n    }\n  ]\n}"
+        },
+        "description": "Transakcija u Parizu u 12:30, a prethodna u Beogradu u 11:00 - 90 min razlike, fizicki nemoguce. Okida R3.6 ImpossibleTravel."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test('ImpossibleTravel okidan', () => pm.expect(r.reasons.join()).to.include('ImpossibleTravel'));",
+              "pm.test('Score >= 30', () => pm.expect(r.riskScore).to.be.at.least(30));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Card Testing - 3+ male transakcije u 10 minuta",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "{{baseUrl}}/fraud-detection/analyze", "host": ["{{baseUrl}}"], "path": ["fraud-detection", "analyze"]},
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction\": {\n    \"id\": \"tx-ctest-4\",\n    \"cardId\": \"card-stefan\",\n    \"customerId\": \"stefan\",\n    \"amount\": 4.0,\n    \"currency\": \"EUR\",\n    \"timestamp\": \"2026-05-08T10:09:00\",\n    \"type\": \"ONLINE\",\n    \"country\": \"RS\",\n    \"city\": null,\n    \"mccCode\": \"streaming\",\n    \"ipAddress\": \"5.5.5.5\",\n    \"deviceFingerprint\": null\n  },\n  \"customerProfile\": {\n    \"customerId\": \"stefan\",\n    \"age\": 22,\n    \"homeCountry\": \"RS\",\n    \"avgMonthlySpending\": 200.0,\n    \"bankRelationshipYears\": 1,\n    \"knownCountries\": [\"RS\"],\n    \"usualMccCodes\": [\"streaming\"],\n    \"nightActivityFlag\": false\n  },\n  \"historicalTransactions\": [\n    {\n      \"id\": \"tx-ctest-1\",\n      \"cardId\": \"card-stefan\",\n      \"customerId\": \"stefan\",\n      \"amount\": 1.0,\n      \"currency\": \"EUR\",\n      \"timestamp\": \"2026-05-08T10:01:00\",\n      \"type\": \"ONLINE\",\n      \"country\": \"RS\",\n      \"city\": null,\n      \"mccCode\": \"streaming\",\n      \"ipAddress\": \"5.5.5.5\",\n      \"deviceFingerprint\": null\n    },\n    {\n      \"id\": \"tx-ctest-2\",\n      \"cardId\": \"card-stefan\",\n      \"customerId\": \"stefan\",\n      \"amount\": 2.0,\n      \"currency\": \"EUR\",\n      \"timestamp\": \"2026-05-08T10:04:00\",\n      \"type\": \"ONLINE\",\n      \"country\": \"RS\",\n      \"city\": null,\n      \"mccCode\": \"streaming\",\n      \"ipAddress\": \"5.5.5.5\",\n      \"deviceFingerprint\": null\n    },\n    {\n      \"id\": \"tx-ctest-3\",\n      \"cardId\": \"card-stefan\",\n      \"customerId\": \"stefan\",\n      \"amount\": 3.0,\n      \"currency\": \"EUR\",\n      \"timestamp\": \"2026-05-08T10:07:00\",\n      \"type\": \"ONLINE\",\n      \"country\": \"RS\",\n      \"city\": null,\n      \"mccCode\": \"streaming\",\n      \"ipAddress\": \"5.5.5.5\",\n      \"deviceFingerprint\": null\n    }\n  ]\n}"
+        },
+        "description": "4 transakcije < 5€ sve iste kartice za 8 minuta. Okida R3.5 CardTestingPattern (count >= 3 u 10 min)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test('CardTestingPattern okidan', () => pm.expect(r.reasons.join()).to.include('CardTestingPattern'));",
+              "pm.test('Score >= 30', () => pm.expect(r.riskScore).to.be.at.least(30));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Daily Limit Exceeded - prekoracen mesecni prosek",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "{{baseUrl}}/fraud-detection/analyze", "host": ["{{baseUrl}}"], "path": ["fraud-detection", "analyze"]},
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"transaction\": {\n    \"id\": \"tx-daily-5\",\n    \"cardId\": \"card-maja\",\n    \"customerId\": \"maja\",\n    \"amount\": 50.0,\n    \"currency\": \"EUR\",\n    \"timestamp\": \"2026-05-08T16:00:00\",\n    \"type\": \"POS\",\n    \"country\": \"RS\",\n    \"city\": \"Beograd\",\n    \"mccCode\": \"supermarket\",\n    \"ipAddress\": null,\n    \"deviceFingerprint\": null\n  },\n  \"customerProfile\": {\n    \"customerId\": \"maja\",\n    \"age\": 30,\n    \"homeCountry\": \"RS\",\n    \"avgMonthlySpending\": 200.0,\n    \"bankRelationshipYears\": 4,\n    \"knownCountries\": [\"RS\"],\n    \"usualMccCodes\": [\"supermarket\"],\n    \"nightActivityFlag\": false\n  },\n  \"historicalTransactions\": [\n    {\n      \"id\": \"tx-daily-1\",\n      \"cardId\": \"card-maja\",\n      \"customerId\": \"maja\",\n      \"amount\": 60.0,\n      \"currency\": \"EUR\",\n      \"timestamp\": \"2026-05-08T09:00:00\",\n      \"type\": \"POS\",\n      \"country\": \"RS\",\n      \"city\": \"Beograd\",\n      \"mccCode\": \"supermarket\",\n      \"ipAddress\": null,\n      \"deviceFingerprint\": null\n    },\n    {\n      \"id\": \"tx-daily-2\",\n      \"cardId\": \"card-maja\",\n      \"customerId\": \"maja\",\n      \"amount\": 55.0,\n      \"currency\": \"EUR\",\n      \"timestamp\": \"2026-05-08T11:00:00\",\n      \"type\": \"POS\",\n      \"country\": \"RS\",\n      \"city\": \"Beograd\",\n      \"mccCode\": \"supermarket\",\n      \"ipAddress\": null,\n      \"deviceFingerprint\": null\n    },\n    {\n      \"id\": \"tx-daily-3\",\n      \"cardId\": \"card-maja\",\n      \"customerId\": \"maja\",\n      \"amount\": 45.0,\n      \"currency\": \"EUR\",\n      \"timestamp\": \"2026-05-08T13:00:00\",\n      \"type\": \"POS\",\n      \"country\": \"RS\",\n      \"city\": \"Beograd\",\n      \"mccCode\": \"supermarket\",\n      \"ipAddress\": null,\n      \"deviceFingerprint\": null\n    },\n    {\n      \"id\": \"tx-daily-4\",\n      \"cardId\": \"card-maja\",\n      \"customerId\": \"maja\",\n      \"amount\": 40.0,\n      \"currency\": \"EUR\",\n      \"timestamp\": \"2026-05-08T15:00:00\",\n      \"type\": \"POS\",\n      \"country\": \"RS\",\n      \"city\": \"Beograd\",\n      \"mccCode\": \"supermarket\",\n      \"ipAddress\": null,\n      \"deviceFingerprint\": null\n    }\n  ]\n}"
+        },
+        "description": "Maja ima avgMonthlySpending=200€. U zadnjih 24h: 60+55+45+40+50=250€ > 200€. Okida R3.1 DailyLimitExceeded."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const r = pm.response.json();",
+              "pm.test('DailyLimitExceeded okidan', () => pm.expect(r.reasons.join()).to.include('DailyLimitExceeded'));",
+              "pm.test('Score > 0', () => pm.expect(r.riskScore).to.be.above(0));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}
