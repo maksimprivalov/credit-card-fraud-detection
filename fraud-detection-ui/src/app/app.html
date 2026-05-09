@@ -1,0 +1,216 @@
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="header">
+    <mat-icon class="header-icon">credit_card_off</mat-icon>
+    <div>
+      <h1>Fraud Detection System</h1>
+      <span class="subtitle">Drools Rule Engine - SBNZ - Maksim Privalov SV81/2023</span>
+    </div>
+    <button mat-flat-button color="accent" (click)="runDemo()" [disabled]="loading" class="demo-btn">
+      <mat-icon>play_arrow</mat-icon>
+      Pokreni Demo
+    </button>
+  </header>
+
+  <div class="layout">
+
+    <!-- FORMA -->
+    <mat-card class="form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>receipt_long</mat-icon>
+        <mat-card-title>Analiza transakcije</mat-card-title>
+        <mat-card-subtitle>Unesite podatke o transakciji i profilu klijenta</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form [formGroup]="form">
+
+          <h3 class="section-title">
+            <mat-icon>swap_horiz</mat-icon> Transakcija
+          </h3>
+
+          <div class="row">
+            <mat-form-field appearance="outline">
+              <mat-label>Transaction ID</mat-label>
+              <input matInput formControlName="txId">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Card ID</mat-label>
+              <input matInput formControlName="cardId">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Customer ID</mat-label>
+              <input matInput formControlName="customerId">
+            </mat-form-field>
+          </div>
+
+          <div class="row">
+            <mat-form-field appearance="outline">
+              <mat-label>Iznos (€)</mat-label>
+              <input matInput type="number" formControlName="amount">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Tip</mat-label>
+              <mat-select formControlName="type">
+                <mat-option value="ONLINE">ONLINE</mat-option>
+                <mat-option value="POS">POS</mat-option>
+                <mat-option value="ATM">ATM</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Zemlja transakcije</mat-label>
+              <input matInput formControlName="country" placeholder="npr. NG, RS, DE">
+            </mat-form-field>
+          </div>
+
+          <div class="row">
+            <mat-form-field appearance="outline">
+              <mat-label>MCC kategorija</mat-label>
+              <mat-select formControlName="mccCode">
+                <mat-option value="supermarket">Supermarket</mat-option>
+                <mat-option value="restaurant">Restoran</mat-option>
+                <mat-option value="electronics">Elektronika</mat-option>
+                <mat-option value="gambling">Kockanje</mat-option>
+                <mat-option value="crypto">Kripto</mat-option>
+                <mat-option value="jewelry">Nakit</mat-option>
+                <mat-option value="streaming">Streaming</mat-option>
+                <mat-option value="gaming">Gaming</mat-option>
+                <mat-option value="travel">Putovanja</mat-option>
+                <mat-option value="pharmacy">Apoteka</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Vreme transakcije</mat-label>
+              <input matInput type="datetime-local" formControlName="timestamp">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>IP adresa</mat-label>
+              <input matInput formControlName="ipAddress">
+            </mat-form-field>
+          </div>
+
+          <mat-divider class="divider"></mat-divider>
+
+          <h3 class="section-title">
+            <mat-icon>person</mat-icon> Profil klijenta
+          </h3>
+
+          <div class="row">
+            <mat-form-field appearance="outline">
+              <mat-label>Customer ID (profil)</mat-label>
+              <input matInput formControlName="profileId">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Matična zemlja</mat-label>
+              <input matInput formControlName="homeCountry" placeholder="npr. RS">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Avg. mesečna potrošnja (€)</mat-label>
+              <input matInput type="number" formControlName="avgMonthlySpending">
+            </mat-form-field>
+          </div>
+
+          <div class="row">
+            <mat-form-field appearance="outline">
+              <mat-label>Poznate zemlje (zarez)</mat-label>
+              <input matInput formControlName="knownCountries" placeholder="RS,DE,AT">
+              <mat-hint>npr. RS,DE,AT</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Uobičajene MCC kategorije (zarez)</mat-label>
+              <input matInput formControlName="usualMccCodes" placeholder="supermarket,restaurant">
+            </mat-form-field>
+            <div class="toggle-wrap">
+              <mat-slide-toggle formControlName="nightActivityFlag" color="primary">
+                Noćna aktivnost uobičajena
+              </mat-slide-toggle>
+            </div>
+          </div>
+
+        </form>
+      </mat-card-content>
+
+      <mat-card-actions align="end">
+        <button mat-flat-button color="primary" (click)="analyze()" [disabled]="loading || form.invalid">
+          <mat-icon>search</mat-icon>
+          Analiziraj transakciju
+        </button>
+      </mat-card-actions>
+    </mat-card>
+
+    <!-- REZULTAT -->
+    <div class="result-panel">
+
+      <div *ngIf="loading" class="state-box">
+        <mat-spinner diameter="48"></mat-spinner>
+        <p>Analiziram...</p>
+      </div>
+
+      <mat-card *ngIf="error && !loading" class="error-card">
+        <mat-icon>error_outline</mat-icon>
+        <p>{{ error }}</p>
+      </mat-card>
+
+      <mat-card *ngIf="result && !loading" class="result-card" [style.border-color]="decisionColor">
+        <div class="verdict" [style.background]="decisionColor">
+          <mat-icon class="verdict-icon">{{ decisionIcon }}</mat-icon>
+          <div>
+            <div class="verdict-label">{{ decisionLabel }}</div>
+            <div class="verdict-decision">{{ result.decision }}</div>
+          </div>
+        </div>
+
+        <mat-card-content class="result-body">
+
+          <div class="score-section">
+            <span class="score-label">Risk Score</span>
+            <div class="score-bar-wrap">
+              <div class="score-bar">
+                <div class="score-fill"
+                     [style.width.%]="result.riskScore"
+                     [style.background]="decisionColor">
+                </div>
+              </div>
+              <span class="score-num" [style.color]="decisionColor">{{ result.riskScore }}/100</span>
+            </div>
+            <div class="score-zones">
+              <span style="color:#2e7d32">0–29 APPROVE</span>
+              <span style="color:#e65100">30–79 REVIEW</span>
+              <span style="color:#b71c1c">80–100 BLOCK</span>
+            </div>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Transaction ID</span>
+              <span class="info-value">{{ result.transactionId }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Customer ID</span>
+              <span class="info-value">{{ result.customerId }}</span>
+            </div>
+          </div>
+
+          <div *ngIf="result.reasons && result.reasons.length > 0" class="reasons">
+            <h3 class="reasons-title">
+              <mat-icon>rule</mat-icon> Okinuta pravila
+            </h3>
+            <div class="reason-chip" *ngFor="let r of result.reasons">
+              <mat-icon class="chip-icon">chevron_right</mat-icon>{{ r }}
+            </div>
+          </div>
+
+        </mat-card-content>
+      </mat-card>
+
+      <div *ngIf="!result && !loading && !error" class="state-box placeholder">
+        <mat-icon>policy</mat-icon>
+        <p>Pokreni demo ili popuni formu i klikni "Analiziraj"</p>
+      </div>
+
+    </div>
+  </div>
+</div>

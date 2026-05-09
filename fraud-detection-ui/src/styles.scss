@@ -1,0 +1,21 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+$primary: mat.m2-define-palette(mat.$m2-indigo-palette, 700);
+$accent:  mat.m2-define-palette(mat.$m2-amber-palette, 600);
+$theme:   mat.m2-define-light-theme((
+  color: (primary: $primary, accent: $accent)
+));
+
+@include mat.all-component-themes($theme);
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+}
+
+h1, h2, h3 { font-weight: 600; }
