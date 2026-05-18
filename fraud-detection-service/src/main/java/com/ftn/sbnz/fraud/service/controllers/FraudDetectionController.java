@@ -53,7 +53,7 @@ public class FraudDetectionController {
                 base.withHour(10).withMinute(47), TransactionType.ONLINE,
                 "NG", null, "electronics", "197.0.0.1", null);
 
-        Transaction t3 = new Transaction("t3", "card1", "marko", 5.0, "EUR",
+        Transaction t3 = new Transaction("t3", "card1", "marko", 4.0, "EUR",
                 base.withHour(10).withMinute(48).withSecond(30), TransactionType.ONLINE,
                 "NG", null, "gambling", "197.0.0.1", null);
 
